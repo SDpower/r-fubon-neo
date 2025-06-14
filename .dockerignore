@@ -37,10 +37,11 @@ README.md
 # Logs
 *.log
 
-# Environment files
+# Environment files (exclude from Docker builds for security)
 .env
 .env.local
 .env.*.local
+.env.example
 
 # Python artifacts (from lib directory)
 lib/

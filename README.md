@@ -26,6 +26,11 @@
 ```bash
 git clone https://github.com/SDpower/r-fubon-neo.git
 cd r-fubon-neo
+
+# 設置環境變數
+cp .env.example .env
+# 編輯 .env 檔案，填入您的 API 認證資訊
+
 cargo build --release
 ```
 
@@ -70,10 +75,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 # 查看版本
 r-fubon-neo version
 
-# 測試連接
-r-fubon-neo --api-key YOUR_KEY --secret-key YOUR_SECRET test
+# 使用環境變數 (.env 檔案)
+r-fubon-neo test
+r-fubon-neo market-data
 
-# 初始化市場數據
+# 或使用 CLI 參數
+r-fubon-neo --api-key YOUR_KEY --secret-key YOUR_SECRET test
 r-fubon-neo --api-key YOUR_KEY --secret-key YOUR_SECRET market-data
 ```
 
@@ -205,16 +212,36 @@ websocket:
   max_missed_pongs: 2
 ```
 
-### 環境變數
+### 環境變數設定
+
+#### 方法1: 使用 .env 檔案 (推薦)
 ```bash
-# API 認證
-FUBON_API_KEY=your_api_key
-FUBON_SECRET_KEY=your_secret_key
+# 複製範例檔案
+cp .env.example .env
+
+# 編輯 .env 檔案
+# FUBON_API_KEY=your_actual_api_key
+# FUBON_SECRET_KEY=your_actual_secret_key
+```
+
+#### 方法2: 直接設置環境變數
+```bash
+# API 認證 (主要格式)
+export FUBON_API_KEY=your_api_key
+export FUBON_SECRET_KEY=your_secret_key
+
+# 或使用替代格式
+export API_KEY=your_api_key
+export SECRET_KEY=your_secret_key
 
 # 日誌等級
-RUST_LOG=info
-RUST_BACKTRACE=1
+export RUST_LOG=info
+export RUST_BACKTRACE=1
 ```
+
+#### 支援的環境變數名稱
+- `FUBON_API_KEY` 或 `API_KEY`
+- `FUBON_SECRET_KEY` 或 `SECRET_KEY`
 
 ## 🤝 貢獻
 

@@ -1,0 +1,63 @@
+[package]
+name = "r-fubon-neo"
+version = "2.2.3"
+authors = ["Steve Lo <info@sd.idv.tw>"]
+edition = "2021"
+description = "Rust implementation of Fubon Neo SDK for trading and market data (P.O.C project)"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/SDpower/r-fubon-neo"
+keywords = ["trading", "finance", "fubon", "sdk", "poc"]
+categories = ["api-bindings", "finance"]
+readme = "README.md"
+homepage = "https://github.com/SDpower/r-fubon-neo"
+documentation = "https://docs.rs/r-fubon-neo"
+
+[package.metadata]
+poc = true
+status = "experimental"
+purpose = "educational-research"
+
+[dependencies]
+# CLI 
+clap = { version = "4.0", features = ["derive"] }
+
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+
+# HTTP client (替代 requests)
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+
+# WebSocket client (替代 websocket-client)
+tokio-tungstenite = { version = "0.20", features = ["rustls-tls-webpki-roots"] }
+
+# JSON serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Event system (替代 pyee)
+tokio-util = "0.7"
+futures-util = "0.3"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# Time utilities
+chrono = { version = "0.4", features = ["serde"] }
+
+# URL parsing
+url = "2.0"
+
+# Threading and channels
+crossbeam-channel = "0.5"
+
+# Additional dependencies for examples
+ctrlc = "3.4"
+
+# Environment variable loading
+dotenvy = "0.15"
+

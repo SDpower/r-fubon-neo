@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  # Main Fubon Neo SDK service
+  fubon-neo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: r-fubon-neo:latest
+    container_name: fubon-neo-sdk
+    environment:
+      - RUST_LOG=info
+      - RUST_BACKTRACE=1
+    volumes:
+      # Mount config directory for credentials
+      - ./config:/app/config:ro
+      # Mount logs directory
+      - ./logs:/app/logs
+    networks:
+      - fubon-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "r-fubon-neo", "version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Development service with volume mounting for hot reload
+  fubon-neo-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: development
+    image: r-fubon-neo:dev
+    container_name: fubon-neo-dev
+    environment:
+      - RUST_LOG=debug
+      - RUST_BACKTRACE=full
+    volumes:
+      - .:/app:cached
+      - cargo-cache:/usr/local/cargo/registry
+      - target-cache:/app/target
+    working_dir: /app
+    command: cargo run -- version
+    networks:
+      - fubon-network
+    profiles:
+      - dev
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: fubon-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - fubon-network
+    profiles:
+      - cache
+
+  # Monitoring with Prometheus (optional)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: fubon-prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    networks:
+      - fubon-network
+    profiles:
+      - monitoring
+
+volumes:
+  cargo-cache:
+    driver: local
+  target-cache:
+    driver: local
+  redis-data:
+    driver: local
+  prometheus-data:
+    driver: local
+
+networks:
+  fubon-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -1,0 +1,46 @@
+# Fubon Neo SDK Configuration
+app:
+  name: "r-fubon-neo"
+  version: "2.2.3"
+  environment: "production"
+
+# Logging configuration
+logging:
+  level: "info"
+  format: "json"
+  file: "/app/logs/fubon-neo.log"
+  max_size: "10MB"
+  max_files: 5
+
+# API configuration
+api:
+  timeout: 30
+  retry_attempts: 3
+  retry_delay: 1000  # milliseconds
+
+# WebSocket configuration
+websocket:
+  timeout: 5
+  auth_timeout: 5
+  ping_interval: 30
+  max_missed_pongs: 2
+  reconnect_attempts: 5
+  reconnect_delay: 1000  # milliseconds
+
+# Market data configuration
+market_data:
+  default_mode: "speed"
+  cache_ttl: 300  # seconds
+  
+# Security settings
+security:
+  max_connections: 100
+  rate_limit:
+    requests_per_minute: 600
+    burst_size: 10
+
+# Monitoring
+monitoring:
+  enabled: true
+  metrics_port: 9090
+  health_check_interval: 30

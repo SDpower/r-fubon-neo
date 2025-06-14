@@ -1,0 +1,20 @@
+# Override file for local development
+# This file is automatically loaded by docker-compose
+version: '3.8'
+
+services:
+  fubon-neo:
+    # Override for local development
+    build:
+      target: development
+    volumes:
+      - .:/app:cached
+      - cargo-cache:/usr/local/cargo/registry
+      - target-cache:/app/target
+    environment:
+      - RUST_LOG=debug
+      - RUST_BACKTRACE=full
+    command: cargo watch -x "run -- version"
+    ports:
+      - "3000:3000"
+      - "8080:8080"
