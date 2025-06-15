@@ -14,7 +14,7 @@ documentation = "https://docs.rs/r-fubon-neo"
 include = [
     "src/**/*",
     "examples/**/*",
-    "lib/**/*.so",
+    "build.rs",
     "Cargo.toml",
     "README.md",
     "LICENSE-*",
