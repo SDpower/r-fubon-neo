@@ -11,6 +11,15 @@ categories = ["api-bindings", "finance"]
 readme = "README.md"
 homepage = "https://github.com/SDpower/r-fubon-neo"
 documentation = "https://docs.rs/r-fubon-neo"
+include = [
+    "src/**/*",
+    "examples/**/*",
+    "lib/**/*.so",
+    "Cargo.toml",
+    "README.md",
+    "LICENSE-*",
+    "CHANGELOG.md"
+]
 
 [package.metadata]
 poc = true
