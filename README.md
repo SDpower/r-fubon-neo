@@ -23,7 +23,39 @@
 
 ### 安裝
 
-#### 從源碼編譯
+#### 方法 1: 使用 Cargo (推薦)
+
+```bash
+# 將 r-fubon-neo 加入到您的 Cargo.toml
+[dependencies]
+r-fubon-neo = "2.2.3"
+```
+
+或使用 cargo add 命令：
+```bash
+cargo add r-fubon-neo
+```
+
+**⚠️ 重要提醒**: 由於 crates.io 大小限制，套件不包含原生 .so 函式庫。您需要：
+
+1. **下載原生函式庫**：
+   ```bash
+   git clone https://github.com/SDpower/r-fubon-neo.git
+   cd r-fubon-neo
+   
+   # 複製對應平台的 .so 檔案到您的專案目錄
+   mkdir -p lib
+   cp -r lib/ /path/to/your/project/
+   ```
+
+2. **或使用完整源碼版本**（包含所有檔案）：
+   ```bash
+   git clone https://github.com/SDpower/r-fubon-neo.git
+   cd r-fubon-neo
+   cargo build --release
+   ```
+
+#### 方法 2: 從源碼編譯
 ```bash
 git clone https://github.com/SDpower/r-fubon-neo.git
 cd r-fubon-neo
@@ -58,6 +90,15 @@ docker run --rm r-fubon-neo:distroless version   # 更好相容性
 
 ### 基本使用
 
+#### 使用 Cargo 套件
+
+在您的 `Cargo.toml` 中：
+```toml
+[dependencies]
+r-fubon-neo = "2.2.3"
+```
+
+在您的程式中：
 ```rust
 use r_fubon_neo::{FubonSDK, CoreSDK, Mode, Order, OrderType, BSAction, TimeInForce, LoginCredentials};
 
@@ -207,12 +248,30 @@ docker-compose --profile monitoring up
 | `r-fubon-neo:distroless` | **3.94MB** | 基於 distroless，靜態連結 | 生產部署，更好相容性 |
 | `r-fubon-neo:latest` | ~50MB+ | 標準 Debian 基底 | 開發測試 |
 
-## 📖 文檔
+## 📖 文檔與資源
 
+### 📚 文檔
 - [API 文檔](./docs/API.md) - 完整的 API 參考
-- [Docker 指南](./docs/DOCKER.md) - Docker 使用說明
+- [Docker 指南](./docs/DOCKER.md) - Docker 使用說明  
 - [開發者指南](./docs/DEVELOPMENT.md) - 開發環境設置
 - [範例程式碼](./examples/) - 使用範例
+
+### 📦 套件資源
+- **crates.io**: [r-fubon-neo](https://crates.io/crates/r-fubon-neo) - Rust 套件庫
+- **docs.rs**: [線上文檔](https://docs.rs/r-fubon-neo) - 自動生成的 API 文檔
+- **GitHub**: [原始碼](https://github.com/SDpower/r-fubon-neo) - 完整原始碼與原生函式庫
+
+### 🚀 快速連結
+```bash
+# 查看套件資訊
+cargo info r-fubon-neo
+
+# 查看線上文檔
+cargo doc --open
+
+# 加入專案依賴
+cargo add r-fubon-neo
+```
 
 ## 🔧 開發
 
