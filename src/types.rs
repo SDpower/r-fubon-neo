@@ -197,3 +197,35 @@ pub struct FutOptConditionOrder {
     pub condition: Condition,
     pub order: FutOptOrder,
 }
+
+/// Account information returned from login
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Account {
+    /// Account ID
+    pub account_id: String,
+    /// Account name
+    pub account_name: String,
+    /// Account type (e.g., "stock", "future", "option")  
+    pub account_type: String,
+    /// Account status
+    pub status: String,
+    /// Currency
+    pub currency: String,
+    /// Available balance
+    pub available_balance: Option<f64>,
+    /// Total balance
+    pub total_balance: Option<f64>,
+}
+
+/// Login credentials structure
+#[derive(Debug, Clone)]
+pub struct LoginCredentials {
+    /// Personal ID for login
+    pub personal_id: String,
+    /// Password
+    pub password: String,
+    /// Certificate path
+    pub cert_path: String,
+    /// Certificate password (optional)
+    pub cert_pass: Option<String>,
+}

@@ -15,7 +15,8 @@
 - 🔒 **類型安全**: 編譯時檢查，避免運行時錯誤
 - 🌐 **完整 API**: 支援股票、期貨、選擇權交易
 - 📊 **即時數據**: WebSocket 即時市場數據串流
-- 🐳 **Docker 化**: 完整的容器化部署方案
+- 🐳 **Docker 化**: 完整的容器化部署方案，支援靜態連結
+- 📦 **靜態連結**: 單一執行檔，無外部依賴，適合容器化部署
 - 📚 **文檔完整**: 詳細的 API 文檔和範例
 
 ## 🚀 快速開始
@@ -29,27 +30,52 @@ cd r-fubon-neo
 
 # 設置環境變數
 cp .env.example .env
-# 編輯 .env 檔案，填入您的 API 認證資訊
+# 編輯 .env 檔案，填入您的登入認證資訊
 
+# 標準編譯
 cargo build --release
+
+# 靜態連結編譯 (推薦用於部署)
+cargo build --release --target x86_64-unknown-linux-musl
 ```
 
 #### 使用 Docker
 ```bash
+# 標準 Docker 映像
 docker build -t r-fubon-neo .
+
+# 靜態連結映像（極小體積 - 僅 2.16MB）
+docker build -f Dockerfile.static --target static -t r-fubon-neo:static .
+
+# Distroless 靜態映像（3.94MB，更好相容性）
+docker build -f Dockerfile.static --target distroless -t r-fubon-neo:distroless .
+
+# 運行容器
 docker run --rm r-fubon-neo version
+docker run --rm r-fubon-neo:static version       # 最小體積
+docker run --rm r-fubon-neo:distroless version   # 更好相容性
 ```
 
 ### 基本使用
 
 ```rust
-use r_fubon_neo::{FubonSDK, CoreSDK, Mode, Order, OrderType, BSAction, TimeInForce};
+use r_fubon_neo::{FubonSDK, CoreSDK, Mode, Order, OrderType, BSAction, TimeInForce, LoginCredentials};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 初始化 SDK
-    let mut sdk = FubonSDK::new()
-        .with_credentials("your_api_key".to_string(), "your_secret_key".to_string());
+    // 初始化 SDK 並登入
+    let mut sdk = FubonSDK::new();
+    
+    let credentials = LoginCredentials {
+        personal_id: "your_personal_id".to_string(),
+        password: "your_password".to_string(),
+        cert_path: "/path/to/your/certificate.p12".to_string(),
+        cert_pass: Some("your_cert_password".to_string()),
+    };
+    
+    // 登入並獲取帳戶列表
+    let accounts = sdk.login(credentials)?;
+    println!("可用帳戶: {:?}", accounts);
     
     // 獲取帳戶餘額
     let balance = sdk.get_account_balance()?;
@@ -75,13 +101,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 # 查看版本
 r-fubon-neo version
 
+# 登入並查看帳戶
+r-fubon-neo login
+
 # 使用環境變數 (.env 檔案)
 r-fubon-neo test
 r-fubon-neo market-data
 
 # 或使用 CLI 參數
-r-fubon-neo --api-key YOUR_KEY --secret-key YOUR_SECRET test
-r-fubon-neo --api-key YOUR_KEY --secret-key YOUR_SECRET market-data
+r-fubon-neo --personal-id YOUR_ID --password YOUR_PASS --cert-path /path/to/cert.p12 login
+r-fubon-neo --personal-id YOUR_ID --password YOUR_PASS --cert-path /path/to/cert.p12 test
 ```
 
 ## 📊 支援的功能
@@ -110,23 +139,49 @@ r-fubon-neo --api-key YOUR_KEY --secret-key YOUR_SECRET market-data
 
 ### 基本運行
 ```bash
-# 構建映像
+# 構建標準映像
 docker build -t r-fubon-neo .
 
-# 運行容器
+# 構建靜態連結映像 (推薦 - 僅 2.16MB)
+docker build -f Dockerfile.static --target static -t r-fubon-neo:static .
+
+# 構建 Distroless 靜態映像 (3.94MB，更好相容性)
+docker build -f Dockerfile.static --target distroless -t r-fubon-neo:distroless .
+
+# 運行標準容器
 docker run --rm \
-  -e FUBON_API_KEY=your_key \
-  -e FUBON_SECRET_KEY=your_secret \
+  -e FUBON_PERSONAL_ID=your_id \
+  -e FUBON_PASSWORD=your_password \
+  -e FUBON_CERT_PATH=/path/to/cert.p12 \
+  -e FUBON_CERT_PASS=your_cert_password \
   r-fubon-neo test
+
+# 運行靜態映像 (極小體積，最高安全性)
+docker run --rm \
+  -e FUBON_PERSONAL_ID=your_id \
+  -e FUBON_PASSWORD=your_password \
+  -e FUBON_CERT_PATH=/path/to/cert.p12 \
+  r-fubon-neo:static test
+
+# 運行 Distroless 映像 (小體積，更好兼容性)
+docker run --rm \
+  -e FUBON_PERSONAL_ID=your_id \
+  -e FUBON_PASSWORD=your_password \
+  -e FUBON_CERT_PATH=/path/to/cert.p12 \
+  r-fubon-neo:distroless test
 ```
 
 ### Docker Compose
 ```bash
-# 啟動服務
+# 啟動標準服務
 docker-compose up fubon-neo
 
 # 開發模式
 docker-compose --profile dev up fubon-neo-dev
+
+# 靜態連結版本
+docker-compose --profile static up fubon-neo-static
+docker-compose --profile distroless up fubon-neo-distroless
 
 # 包含監控
 docker-compose --profile monitoring up
@@ -135,11 +190,22 @@ docker-compose --profile monitoring up
 ### 便利腳本
 ```bash
 # 構建腳本
-./scripts/docker-build.sh -t v2.2.3
+./scripts/docker-build.sh -t v2.2.3                    # 標準版本
+./scripts/docker-build.sh -s -t static                # 靜態連結版本 (2.16MB)
+./scripts/docker-build.sh --distroless -t distroless  # Distroless 版本 (3.94MB)
 
 # 運行腳本
-./scripts/docker-run.sh -k YOUR_KEY -s YOUR_SECRET test
+./scripts/docker-run.sh -k YOUR_KEY -s YOUR_SECRET test  # Legacy method (deprecated)
+# 新方法: 使用環境變數或直接運行 Docker 容器
 ```
+
+### 映像大小比較
+
+| 映像版本 | 大小 | 說明 | 使用場景 |
+|---------|------|------|----------|
+| `r-fubon-neo:static` | **2.16MB** | 基於 scratch，完全靜態連結 | 生產部署，最高安全性 |
+| `r-fubon-neo:distroless` | **3.94MB** | 基於 distroless，靜態連結 | 生產部署，更好相容性 |
+| `r-fubon-neo:latest` | ~50MB+ | 標準 Debian 基底 | 開發測試 |
 
 ## 📖 文檔
 
@@ -162,6 +228,10 @@ cargo run -- version
 
 # 發布模式
 cargo build --release
+
+# 靜態連結版本 (推薦用於部署)
+cargo build --release --target x86_64-unknown-linux-musl
+cargo build --profile static
 
 # 運行測試
 cargo test
@@ -192,7 +262,7 @@ cargo watch -x "run -- version"
 | 類型安全 | 運行時檢查 | ✅ 編譯時檢查 |
 | 錯誤處理 | Exception | 🛡️ Result 類型 |
 | 並發處理 | asyncio | ⚡ Tokio 異步 |
-| 部署大小 | 需要 Python 環境 | 📦 單一執行檔 |
+| 部署大小 | 需要 Python 環境 | 📦 單一執行檔 (2.16MB 靜態映像) |
 
 ## 🔧 設定檔
 
@@ -220,19 +290,25 @@ websocket:
 cp .env.example .env
 
 # 編輯 .env 檔案
-# FUBON_API_KEY=your_actual_api_key
-# FUBON_SECRET_KEY=your_actual_secret_key
+# FUBON_PERSONAL_ID=your_actual_personal_id
+# FUBON_PASSWORD=your_actual_password
+# FUBON_CERT_PATH=/path/to/your/certificate.p12
+# FUBON_CERT_PASS=your_actual_cert_password
 ```
 
 #### 方法2: 直接設置環境變數
 ```bash
-# API 認證 (主要格式)
-export FUBON_API_KEY=your_api_key
-export FUBON_SECRET_KEY=your_secret_key
+# 登入認證 (主要格式)
+export FUBON_PERSONAL_ID=your_personal_id
+export FUBON_PASSWORD=your_password
+export FUBON_CERT_PATH=/path/to/your/certificate.p12
+export FUBON_CERT_PASS=your_cert_password
 
 # 或使用替代格式
-export API_KEY=your_api_key
-export SECRET_KEY=your_secret_key
+export PERSONAL_ID=your_personal_id
+export PASSWORD=your_password
+export CERT_PATH=/path/to/your/certificate.p12
+export CERT_PASS=your_cert_password
 
 # 日誌等級
 export RUST_LOG=info
@@ -240,8 +316,10 @@ export RUST_BACKTRACE=1
 ```
 
 #### 支援的環境變數名稱
-- `FUBON_API_KEY` 或 `API_KEY`
-- `FUBON_SECRET_KEY` 或 `SECRET_KEY`
+- `FUBON_PERSONAL_ID` 或 `PERSONAL_ID`
+- `FUBON_PASSWORD` 或 `PASSWORD`
+- `FUBON_CERT_PATH` 或 `CERT_PATH`
+- `FUBON_CERT_PASS` 或 `CERT_PASS` (可選)
 
 ## 🤝 貢獻
 

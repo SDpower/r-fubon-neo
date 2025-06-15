@@ -22,6 +22,8 @@ usage() {
     echo "Options:"
     echo "  -t, --tag TAG          Tag for the image (default: latest)"
     echo "  -d, --dev              Build development image"
+    echo "  -s, --static           Build static linked image"
+    echo "  --distroless           Build distroless static image"
     echo "  -p, --push             Push image to registry after build"
     echo "  -r, --registry URL     Registry URL for pushing"
     echo "  -h, --help             Display this help message"
@@ -29,6 +31,8 @@ usage() {
     echo "Examples:"
     echo "  $0 -t v2.2.3                    # Build production image with tag v2.2.3"
     echo "  $0 -d -t dev                    # Build development image"
+    echo "  $0 -s -t static                 # Build static linked image"
+    echo "  $0 --distroless -t distroless   # Build distroless static image"
     echo "  $0 -t v2.2.3 -p -r my-registry.com  # Build and push to registry"
 }
 
@@ -41,6 +45,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         -d|--dev)
             BUILD_TYPE="development"
+            shift
+            ;;
+        -s|--static)
+            BUILD_TYPE="static"
+            shift
+            ;;
+        --distroless)
+            BUILD_TYPE="distroless"
             shift
             ;;
         -p|--push)
@@ -76,13 +88,24 @@ echo "Build type: $BUILD_TYPE"
 echo ""
 
 # Build the image
-if [[ "$BUILD_TYPE" == "development" ]]; then
-    echo -e "${YELLOW}Building development image...${NC}"
-    docker build -f Dockerfile.dev --target development -t "$FULL_IMAGE_NAME" .
-else
-    echo -e "${YELLOW}Building production image...${NC}"
-    docker build -f Dockerfile -t "$FULL_IMAGE_NAME" .
-fi
+case "$BUILD_TYPE" in
+    "development")
+        echo -e "${YELLOW}Building development image...${NC}"
+        docker build -f Dockerfile.dev --target development -t "$FULL_IMAGE_NAME" .
+        ;;
+    "static")
+        echo -e "${YELLOW}Building static linked image...${NC}"
+        docker build -f Dockerfile.static --target static -t "$FULL_IMAGE_NAME" .
+        ;;
+    "distroless")
+        echo -e "${YELLOW}Building distroless static image...${NC}"
+        docker build -f Dockerfile.static --target distroless -t "$FULL_IMAGE_NAME" .
+        ;;
+    *)
+        echo -e "${YELLOW}Building production image...${NC}"
+        docker build -f Dockerfile -t "$FULL_IMAGE_NAME" .
+        ;;
+esac
 
 # Check if build was successful
 if [[ $? -eq 0 ]]; then
@@ -112,7 +135,19 @@ if [[ $? -eq 0 ]]; then
     
     echo ""
     echo -e "${GREEN}Build completed successfully!${NC}"
-    echo "Run with: docker run --rm $FULL_IMAGE_NAME"
+    case "$BUILD_TYPE" in
+        "static")
+            echo "Run with: docker run --rm $FULL_IMAGE_NAME"
+            echo "Image size optimized with static linking (scratch base)"
+            ;;
+        "distroless")
+            echo "Run with: docker run --rm $FULL_IMAGE_NAME"
+            echo "Image size optimized with static linking (distroless base)"
+            ;;
+        *)
+            echo "Run with: docker run --rm $FULL_IMAGE_NAME"
+            ;;
+    esac
     
 else
     echo -e "${RED}✗ Build failed!${NC}"

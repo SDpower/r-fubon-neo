@@ -26,6 +26,9 @@ r-fubon-neo 開發環境設置和貢獻指南
   - macOS: `brew install openssl pkg-config`
   - Ubuntu/Debian: `sudo apt install libssl-dev pkg-config build-essential`
   - CentOS/RHEL: `sudo yum install openssl-devel pkgconfig gcc`
+- **靜態連結依賴** (可選):
+  - macOS: `brew install FiloSottile/musl-cross/musl-cross`
+  - Ubuntu/Debian: `sudo apt install musl-tools musl-dev`
 
 ### 安裝 Rust
 
@@ -39,6 +42,12 @@ source ~/.cargo/env
 # 驗證安裝
 rustc --version
 cargo --version
+
+# 安裝靜態連結目標 (可選)
+rustup target add x86_64-unknown-linux-musl
+rustup target add aarch64-unknown-linux-musl
+rustup target add x86_64-unknown-linux-gnu
+rustup target add aarch64-unknown-linux-gnu
 ```
 
 ### 克隆專案
@@ -125,8 +134,11 @@ r-fubon-neo/
 ├── docs/                  # 文檔
 ├── scripts/               # 實用腳本
 ├── config/                # 配置檔案
+├── .cargo/                # Cargo 配置
+│   └── config.toml        # 靜態連結配置
 ├── Dockerfile             # 生產 Docker 檔案
 ├── Dockerfile.dev         # 開發 Docker 檔案
+├── Dockerfile.static      # 靜態連結 Docker 檔案
 ├── docker-compose.yml     # Docker Compose 配置
 └── Cargo.toml            # 專案配置
 ```
@@ -174,6 +186,10 @@ cargo fmt
 cargo clippy
 cargo test
 
+# 測試靜態連結編譯
+cargo build --release --target x86_64-unknown-linux-musl
+cargo build --profile static
+
 # 4. 提交更改
 git add .
 git commit -m "feat: add new feature"
@@ -191,7 +207,10 @@ cargo watch -x "run -- version"
 # 方法2: 使用 Docker 開發環境
 docker-compose --profile dev up fubon-neo-dev
 
-# 方法3: 直接使用開發容器
+# 方法3: 使用靜態連結開發
+docker-compose --profile static up fubon-neo-static
+
+# 方法4: 直接使用開發容器
 docker run --rm -it \
   -v $(pwd):/app:cached \
   r-fubon-neo:dev
@@ -503,6 +522,75 @@ sudo apt install libssl-dev
 
 # 使用 rustls 替代（可選）
 cargo build --no-default-features --features rustls
+
+# 靜態連結 OpenSSL
+export OPENSSL_STATIC=1
+cargo build --target x86_64-unknown-linux-musl
+```
+
+#### 靜態連結問題
+
+```bash
+# 安裝 musl 工具鏈
+rustup target add x86_64-unknown-linux-musl
+
+# macOS 上安裝 musl 交叉編譯工具
+brew install FiloSottile/musl-cross/musl-cross
+
+# Ubuntu/Debian 安裝 musl 工具
+sudo apt install musl-tools musl-dev
+
+# 設置靜態連結環境變數
+export RUSTFLAGS="-C target-feature=+crt-static"
+export PKG_CONFIG_ALL_STATIC=1
+```
+
+#### Docker 靜態連結構建問題
+
+**問題：Cargo.lock 版本不兼容**
+```bash
+error: lock file version `4` was found, but this version of Cargo does not understand this lock file
+```
+解決方案：
+- 升級 Docker 映像中的 Rust 版本至 1.82+
+- 或在 Dockerfile 中重新生成 Cargo.lock
+
+**問題：tokio-tungstenite 缺少 connect feature**
+```bash
+error: unresolved import `tokio_tungstenite::connect_async`
+```
+解決方案：
+```toml
+# Cargo.toml
+tokio-tungstenite = { version = "0.20", features = ["connect", "rustls-tls-webpki-roots"], default-features = false }
+```
+
+**問題：交叉編譯工具鏈缺失**
+```bash
+error: failed to run custom build command for `ring v0.17.14`
+```
+解決方案：
+- 使用 `--platform=linux/x86_64` 強制使用 x86_64 構建環境
+- 或安裝適當的交叉編譯工具鏈
+
+**已驗證的解決方案：**
+```dockerfile
+# 使用 x86_64 平台避免交叉編譯
+FROM --platform=linux/x86_64 rust:1.82-alpine as builder
+
+# 安裝必要的依賴
+RUN apk add --no-cache \
+    musl-dev \
+    pkgconfig \
+    openssl-dev \
+    openssl-libs-static \
+    ca-certificates \
+    gcc \
+    libc-dev
+
+# 設置環境變數
+ENV PKG_CONFIG_ALL_STATIC=1
+ENV OPENSSL_STATIC=1
 ```
 
 #### 依賴衝突
@@ -567,6 +655,9 @@ docker system prune -a
 
 # 使用 BuildKit
 DOCKER_BUILDKIT=1 docker build .
+
+# 建立靜態連結映像
+docker build -f Dockerfile.static --target static -t r-fubon-neo:static .
 ```
 
 #### 權限問題

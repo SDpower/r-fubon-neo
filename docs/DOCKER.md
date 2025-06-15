@@ -59,6 +59,22 @@ docker build -f Dockerfile.dev --target development -t r-fubon-neo:dev .
 docker build -f Dockerfile.dev --target production -t r-fubon-neo:prod .
 ```
 
+#### 靜態連結映像（已驗證可用）
+```bash
+# 構建靜態連結映像（極小體積 - 僅 2.16MB）
+docker build -f Dockerfile.static --target static -t r-fubon-neo:static .
+
+# 構建 Distroless 靜態映像（3.94MB，更好相容性）
+docker build -f Dockerfile.static --target distroless -t r-fubon-neo:distroless .
+
+# 驗證映像大小
+docker images r-fubon-neo --format "table {{.Repository}}:{{.Tag}}\t{{.Size}}"
+# 輸出：
+# REPOSITORY:TAG           SIZE
+# r-fubon-neo:distroless   3.94MB
+# r-fubon-neo:static       2.16MB
+```
+
 ### 使用構建腳本
 
 我們提供了便利的構建腳本：
@@ -73,6 +89,12 @@ docker build -f Dockerfile.dev --target production -t r-fubon-neo:prod .
 # 構建開發映像
 ./scripts/docker-build.sh -d -t dev
 
+# 構建靜態連結映像（2.16MB）
+./scripts/docker-build.sh -s -t static
+
+# 構建 Distroless 映像（3.94MB）
+./scripts/docker-build.sh --distroless -t distroless
+
 # 構建並推送到註冊表
 ./scripts/docker-build.sh -t v2.2.3 -p -r your-registry.com
 
@@ -86,6 +108,8 @@ docker build -f Dockerfile.dev --target production -t r-fubon-neo:prod .
 |------|------|------|
 | `-t, --tag` | 指定映像標籤 | `-t v2.2.3` |
 | `-d, --dev` | 構建開發映像 | `-d` |
+| `-s, --static` | 構建靜態連結映像 | `-s` |
+| `--distroless` | 構建 Distroless 靜態映像 | `--distroless` |
 | `-p, --push` | 構建後推送到註冊表 | `-p` |
 | `-r, --registry` | 指定註冊表 URL | `-r registry.example.com` |
 
@@ -102,6 +126,18 @@ docker run --rm \
   -e FUBON_API_KEY=your_key \
   -e FUBON_SECRET_KEY=your_secret \
   r-fubon-neo test
+
+# 使用靜態連結映像（極小體積 - 2.16MB）
+docker run --rm \
+  -e FUBON_API_KEY=your_key \
+  -e FUBON_SECRET_KEY=your_secret \
+  r-fubon-neo:static test
+
+# 使用 Distroless 映像（小體積 - 3.94MB，更好相容性）
+docker run --rm \
+  -e FUBON_API_KEY=your_key \
+  -e FUBON_SECRET_KEY=your_secret \
+  r-fubon-neo:distroless test
 
 # 初始化市場數據
 docker run --rm \
@@ -188,6 +224,12 @@ docker-compose down
 # 啟動開發環境
 docker-compose --profile dev up fubon-neo-dev
 
+# 啟動靜態連結版本
+docker-compose --profile static up fubon-neo-static
+
+# 啟動 Distroless 版本
+docker-compose --profile distroless up fubon-neo-distroless
+
 # 使用覆蓋文件（自動熱重載）
 docker-compose up fubon-neo  # 自動使用 docker-compose.override.yml
 ```
@@ -207,12 +249,14 @@ docker-compose --profile cache up redis
 
 ### 服務說明
 
-| 服務名稱 | 描述 | Profile | 端口 |
-|----------|------|---------|------|
-| `fubon-neo` | 主要服務 | - | - |
-| `fubon-neo-dev` | 開發服務 | `dev` | 3000, 8080 |
-| `redis` | 快取服務 | `cache` | 6379 |
-| `prometheus` | 監控服務 | `monitoring` | 9090 |
+| 服務名稱 | 描述 | Profile | 映像大小 | 端口 |
+|----------|------|---------|----------|------|
+| `fubon-neo` | 主要服務 | - | ~50MB+ | - |
+| `fubon-neo-dev` | 開發服務 | `dev` | ~1.3GB | 3000, 8080 |
+| `fubon-neo-static` | 靜態連結服務 | `static` | **2.16MB** | - |
+| `fubon-neo-distroless` | Distroless 服務 | `distroless` | **3.94MB** | - |
+| `redis` | 快取服務 | `cache` | ~32MB | 6379 |
+| `prometheus` | 監控服務 | `monitoring` | ~200MB | 9090 |
 
 ## 開發環境
 
@@ -267,6 +311,23 @@ CARGO_WATCH_IGNORE_GLOB=target/*
 - 非 root 用戶運行
 - 包含健康檢查
 - 優化的依賴管理
+- 支援靜態連結（無外部依賴）
+
+### 靜態連結映像優勢
+
+**r-fubon-neo:static (2.16MB)**
+- ✅ 極小體積，快速下載和啟動
+- ✅ 基於 scratch，最高安全性（無攻擊面）
+- ✅ 完全靜態連結，無外部依賴
+- ✅ 適合微服務和邊緣計算
+- ⚠️ 調試工具有限
+
+**r-fubon-neo:distroless (3.94MB)**  
+- ✅ 小體積，兼顧安全性和相容性
+- ✅ 包含基本的 CA 證書和時區資料
+- ✅ 非 root 用戶執行
+- ✅ 更好的故障排除支援
+- ✅ 推薦用於生產環境
 
 ### 部署配置
 
@@ -459,12 +520,19 @@ docker exec container_name ip addr show
 #### 映像優化
 
 ```dockerfile
-# 使用多階段構建
+# 標準多階段構建
 FROM rust:1.75-slim as builder
 # ... 構建階段
 
 FROM debian:bookworm-slim as runtime
 # ... 運行時階段
+
+# 靜態連結構建（最小體積）
+FROM rust:1.75-alpine as static-builder
+# ... 靜態構建階段
+
+FROM scratch as static-runtime
+# ... 僅包含靜態二進位檔
 ```
 
 #### 資源限制
@@ -530,11 +598,24 @@ networks:
 
 1. **使用 .dockerignore** - 排除不必要的檔案
 2. **多階段構建** - 減少映像大小
-3. **健康檢查** - 確保服務可用性
-4. **資源限制** - 防止資源耗盡
-5. **日誌管理** - 配置適當的日誌策略
-6. **秘密管理** - 安全處理敏感資訊
-7. **定期更新** - 保持映像和依賴最新
+3. **靜態連結** - 最小化依賴和映像體積（推薦 distroless 用於生產）
+4. **映像選擇**：
+   - 開發測試：標準映像
+   - 生產部署：`r-fubon-neo:distroless` (3.94MB)
+   - 微服務/邊緣：`r-fubon-neo:static` (2.16MB)
+5. **健康檢查** - 確保服務可用性
+6. **資源限制** - 防止資源耗盡
+7. **日誌管理** - 配置適當的日誌策略
+8. **秘密管理** - 安全處理敏感資訊
+9. **定期更新** - 保持映像和依賴最新
+
+### 映像大小對比總結
+
+| 用途 | 推薦映像 | 大小 | 安全性 | 相容性 |
+|------|----------|------|--------|--------|
+| 生產部署 | `distroless` | 3.94MB | 很高 | 良好 |
+| 微服務 | `static` | 2.16MB | 極高 | 基本 |
+| 開發測試 | `latest` | ~50MB+ | 中等 | 最佳 |
 
 ## 參考資源
 

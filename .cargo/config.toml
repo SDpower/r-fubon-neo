@@ -1,0 +1,48 @@
+[build]
+# Static linking configuration for different targets
+target-dir = "target"
+
+[target.x86_64-unknown-linux-gnu]
+# Linux x86_64 static linking
+rustflags = [
+    "-C", "target-feature=+crt-static",
+    "-C", "link-arg=-static",
+]
+
+[target.x86_64-unknown-linux-musl]
+# Alpine Linux / musl static linking
+rustflags = [
+    "-C", "target-feature=+crt-static",
+]
+
+[target.aarch64-unknown-linux-gnu]
+# ARM64 Linux static linking
+rustflags = [
+    "-C", "target-feature=+crt-static",
+    "-C", "link-arg=-static",
+]
+
+[target.aarch64-unknown-linux-musl]
+# ARM64 Alpine Linux / musl static linking
+rustflags = [
+    "-C", "target-feature=+crt-static",
+]
+
+[target.x86_64-pc-windows-gnu]
+# Windows static linking with MinGW
+rustflags = [
+    "-C", "target-feature=+crt-static",
+]
+
+[target.x86_64-pc-windows-msvc]
+# Windows static linking with MSVC
+rustflags = [
+    "-C", "target-feature=+crt-static",
+]
+
+# Environment variables for static linking
+[env]
+# Force static linking for OpenSSL (if using openssl crate)
+OPENSSL_STATIC = "1"
+# Force static linking for other C libraries
+PKG_CONFIG_ALL_STATIC = "1"

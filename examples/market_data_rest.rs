@@ -19,8 +19,10 @@ cp .env.example .env
 # 編輯 .env 檔案，填入測試值或實際認證資訊
 
 # 方法2: 設置環境變數
-export FUBON_API_KEY=test_api_key
-export FUBON_SECRET_KEY=test_secret_key
+export FUBON_PERSONAL_ID=your_personal_id
+export FUBON_PASSWORD=your_password
+export FUBON_CERT_PATH=/path/to/your/certificate.p12
+export FUBON_CERT_PASS=your_cert_password
 
 # 運行範例
 cargo run --example market_data_rest
@@ -34,7 +36,7 @@ cargo run --example market_data_rest
 
 use r_fubon_neo::{
     FubonSDK, CoreSDK, Mode,
-    Error, Result
+    Error, Result, LoginCredentials
 };
 use std::env;
 use serde_json::Value;
@@ -286,21 +288,39 @@ async fn main() -> Result<()> {
     // 初始化日誌
     tracing_subscriber::fmt::init();
     
-    // 從環境變數獲取 API 認證資訊 (支援多種變數名稱)
-    let api_key = env::var("FUBON_API_KEY")
-        .or_else(|_| env::var("API_KEY"))
-        .map_err(|_| Error::general("請設置 FUBON_API_KEY 或 API_KEY 環境變數"))?;
-    let secret_key = env::var("FUBON_SECRET_KEY")
-        .or_else(|_| env::var("SECRET_KEY"))
-        .map_err(|_| Error::general("請設置 FUBON_SECRET_KEY 或 SECRET_KEY 環境變數"))?;
+    // 從環境變數獲取登入認證資訊 (支援多種變數名稱)
+    let personal_id = env::var("FUBON_PERSONAL_ID")
+        .or_else(|_| env::var("PERSONAL_ID"))
+        .map_err(|_| Error::general("請設置 FUBON_PERSONAL_ID 或 PERSONAL_ID 環境變數"))?;
+    let password = env::var("FUBON_PASSWORD")
+        .or_else(|_| env::var("PASSWORD"))
+        .map_err(|_| Error::general("請設置 FUBON_PASSWORD 或 PASSWORD 環境變數"))?;
+    let cert_path = env::var("FUBON_CERT_PATH")
+        .or_else(|_| env::var("CERT_PATH"))
+        .map_err(|_| Error::general("請設置 FUBON_CERT_PATH 或 CERT_PATH 環境變數"))?;
+    let cert_pass = env::var("FUBON_CERT_PASS")
+        .or_else(|_| env::var("CERT_PASS"))
+        .ok(); // 憑證密碼是可選的
     
     println!("🚀 初始化 Fubon Neo SDK REST API (P.O.C 版本)...");
     println!("📝 專案開發者: Steve Lo (info@sd.idv.tw)");
     println!("⚠️  注意: 這是概念驗證專案，REST API 調用為模擬");
     
-    // 創建 SDK 實例
-    let mut sdk = FubonSDK::new()
-        .with_credentials(api_key, secret_key);
+    // 創建 SDK 實例並登入
+    let mut sdk = FubonSDK::new();
+    
+    let credentials = LoginCredentials {
+        personal_id,
+        password,
+        cert_path,
+        cert_pass,
+    };
+    
+    println!("🔐 執行登入...");
+    let accounts = sdk.login(credentials)
+        .map_err(|e| Error::general(&format!("登入失敗: {}", e)))?;
+    
+    println!("✅ 登入成功! 找到 {} 個帳戶", accounts.len());
     
     // 初始化市場數據
     println!("\n⚡ 初始化市場數據...");
@@ -316,7 +336,7 @@ async fn main() -> Result<()> {
                 let symbols = vec!["2330", "2317", "2454"];
                 
                 for symbol in &symbols {
-                    println!("\n" + &"=".repeat(50));
+                    println!("\n{}", "=".repeat(50));
                     println!("🏢 處理股票: {} ", symbol);
                     
                     // 獲取快照數據
@@ -344,7 +364,7 @@ async fn main() -> Result<()> {
                     sleep(Duration::from_secs(1)).await;
                 }
                 
-                println!("\n" + &"=".repeat(50));
+                println!("\n{}", "=".repeat(50));
                 println!("📊 數據獲取摘要完成");
                 
             }
@@ -385,13 +405,26 @@ mod tests {
     
     #[tokio::test]
     async fn test_market_data_initialization() {
-        let mut sdk = FubonSDK::new()
-            .with_credentials("test_key".to_string(), "test_secret".to_string());
+        let mut sdk = FubonSDK::new();
         
-        // 這在實際測試中會失敗，因為沒有真實的認證
+        // 測試在沒有登入的情況下初始化市場數據
         let result = sdk.init_realtime(Mode::Standard);
         
-        // 在模擬環境中，這應該會返回錯誤
+        // 應該會返回錯誤，因為沒有登入
         assert!(result.is_err());
+    }
+    
+    #[test]
+    fn test_login_credentials_creation() {
+        let credentials = LoginCredentials {
+            personal_id: "test_id".to_string(),
+            password: "test_password".to_string(),
+            cert_path: "/test/path.p12".to_string(),
+            cert_pass: None,
+        };
+        
+        assert_eq!(credentials.personal_id, "test_id");
+        assert_eq!(credentials.cert_path, "/test/path.p12");
+        assert_eq!(credentials.cert_pass, None);
     }
 }

@@ -48,6 +48,48 @@ services:
     profiles:
       - dev
 
+  # Static build service using scratch image
+  fubon-neo-static:
+    build:
+      context: .
+      dockerfile: Dockerfile.static
+      target: static
+    image: r-fubon-neo:static
+    container_name: fubon-neo-static
+    environment:
+      - RUST_LOG=info
+    networks:
+      - fubon-network
+    profiles:
+      - static
+    healthcheck:
+      test: ["/r-fubon-neo", "version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # Static build service using distroless image  
+  fubon-neo-distroless:
+    build:
+      context: .
+      dockerfile: Dockerfile.static
+      target: distroless
+    image: r-fubon-neo:distroless
+    container_name: fubon-neo-distroless
+    environment:
+      - RUST_LOG=info
+    networks:
+      - fubon-network
+    profiles:
+      - distroless
+    healthcheck:
+      test: ["/usr/local/bin/r-fubon-neo", "version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
   # Redis for caching (optional)
   redis:
     image: redis:7-alpine

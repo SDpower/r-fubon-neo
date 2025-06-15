@@ -20,8 +20,10 @@ cp .env.example .env
 # 編輯 .env 檔案，填入測試值或實際認證資訊
 
 # 方法2: 設置環境變數
-export FUBON_API_KEY=test_api_key
-export FUBON_SECRET_KEY=test_secret_key
+export FUBON_PERSONAL_ID=your_personal_id
+export FUBON_PASSWORD=your_password
+export FUBON_CERT_PATH=/path/to/your/certificate.p12
+export FUBON_CERT_PASS=your_cert_password
 
 # 運行範例
 cargo run --example basic_trading
@@ -35,7 +37,7 @@ cargo run --example basic_trading
 
 use r_fubon_neo::{
     FubonSDK, CoreSDK, Order, OrderType, BSAction, TimeInForce,
-    Error, Result
+    Error, Result, LoginCredentials
 };
 use std::env;
 
@@ -47,21 +49,42 @@ async fn main() -> Result<()> {
     // 初始化日誌
     tracing_subscriber::fmt::init();
     
-    // 從環境變數獲取 API 認證資訊 (支援多種變數名稱)
-    let api_key = env::var("FUBON_API_KEY")
-        .or_else(|_| env::var("API_KEY"))
-        .map_err(|_| Error::general("請設置 FUBON_API_KEY 或 API_KEY 環境變數"))?;
-    let secret_key = env::var("FUBON_SECRET_KEY")
-        .or_else(|_| env::var("SECRET_KEY"))
-        .map_err(|_| Error::general("請設置 FUBON_SECRET_KEY 或 SECRET_KEY 環境變數"))?;
+    // 從環境變數獲取登入認證資訊 (支援多種變數名稱)
+    let personal_id = env::var("FUBON_PERSONAL_ID")
+        .or_else(|_| env::var("PERSONAL_ID"))
+        .map_err(|_| Error::general("請設置 FUBON_PERSONAL_ID 或 PERSONAL_ID 環境變數"))?;
+    let password = env::var("FUBON_PASSWORD")
+        .or_else(|_| env::var("PASSWORD"))
+        .map_err(|_| Error::general("請設置 FUBON_PASSWORD 或 PASSWORD 環境變數"))?;
+    let cert_path = env::var("FUBON_CERT_PATH")
+        .or_else(|_| env::var("CERT_PATH"))
+        .map_err(|_| Error::general("請設置 FUBON_CERT_PATH 或 CERT_PATH 環境變數"))?;
+    let cert_pass = env::var("FUBON_CERT_PASS")
+        .or_else(|_| env::var("CERT_PASS"))
+        .ok(); // 憑證密碼是可選的
     
     println!("🚀 初始化 Fubon Neo SDK (P.O.C 版本)...");
     println!("📝 專案開發者: Steve Lo (info@sd.idv.tw)");
     println!("⚠️  注意: 這是概念驗證專案，所有操作均為模擬");
     
-    // 創建 SDK 實例
-    let sdk = FubonSDK::new()
-        .with_credentials(api_key, secret_key);
+    // 創建 SDK 實例並登入
+    let mut sdk = FubonSDK::new();
+    
+    let credentials = LoginCredentials {
+        personal_id,
+        password,
+        cert_path,
+        cert_pass,
+    };
+    
+    println!("🔐 執行登入...");
+    let accounts = sdk.login(credentials)
+        .map_err(|e| Error::general(&format!("登入失敗: {}", e)))?;
+    
+    println!("✅ 登入成功! 找到 {} 個帳戶:", accounts.len());
+    for account in &accounts {
+        println!("  - {} ({}): {}", account.account_name, account.account_id, account.account_type);
+    }
     
     // 1. 檢查帳戶餘額
     println!("\n💰 檢查帳戶餘額...");
@@ -183,10 +206,24 @@ mod tests {
     
     #[test]
     fn test_sdk_creation() {
-        let sdk = FubonSDK::new()
-            .with_credentials("test_key".to_string(), "test_secret".to_string());
+        let sdk = FubonSDK::new();
         
         // SDK 應該能夠正常創建
-        // 在實際測試中，這裡會有更多的驗證邏輯
+        assert!(!sdk.is_logged_in());
+        assert_eq!(sdk.accounts().len(), 0);
+    }
+    
+    #[test]
+    fn test_login_credentials() {
+        let credentials = LoginCredentials {
+            personal_id: "test_id".to_string(),
+            password: "test_password".to_string(),
+            cert_path: "/test/path.p12".to_string(),
+            cert_pass: Some("cert_pass".to_string()),
+        };
+        
+        assert_eq!(credentials.personal_id, "test_id");
+        assert_eq!(credentials.cert_path, "/test/path.p12");
+        assert_eq!(credentials.cert_pass, Some("cert_pass".to_string()));
     }
 }

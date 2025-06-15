@@ -24,11 +24,11 @@ clap = { version = "4.0", features = ["derive"] }
 # Async runtime
 tokio = { version = "1.0", features = ["full"] }
 
-# HTTP client (替代 requests)
-reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+# HTTP client (替代 requests) with static linking support
+reqwest = { version = "0.11", features = ["json", "rustls-tls"], default-features = false }
 
-# WebSocket client (替代 websocket-client)
-tokio-tungstenite = { version = "0.20", features = ["rustls-tls-webpki-roots"] }
+# WebSocket client (替代 websocket-client) with static linking support
+tokio-tungstenite = { version = "0.20", features = ["connect", "rustls-tls-webpki-roots"], default-features = false }
 
 # JSON serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -60,4 +60,12 @@ ctrlc = "3.4"
 
 # Environment variable loading
 dotenvy = "0.15"
+
+# Static linking profile
+[profile.static]
+inherits = "release"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
 
